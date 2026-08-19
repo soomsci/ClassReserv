@@ -116,9 +116,11 @@ as $$
 $$;
 
 -- 익명 접근 전용 뷰: 마스킹된 이름만, 준비사항·PIN 해시 없음
-create or replace view public.reservations_public
-with (security_invoker = true)
-as
+--
+-- security_invoker 를 켜지 않는다(기본값 false).
+-- 뷰가 소유자 권한으로 실행되어야 원본 테이블 RLS(전면 차단)를 통과해
+-- "마스킹된 열만" 익명에게 보여줄 수 있다. 원본 테이블 직접 접근은 여전히 막힌다.
+create or replace view public.reservations_public as
 select
   id,
   room_id,
@@ -161,11 +163,13 @@ drop policy if exists holidays_read on public.holidays;
 create policy holidays_read on public.holidays
   for select to anon, authenticated using (true);
 
--- 마스킹 뷰만 익명 조회 허용 (security_invoker 뷰이므로 별도 정책이 필요하다)
-drop policy if exists reservations_public_read on public.reservations;
-create policy reservations_public_read on public.reservations
-  for select to anon, authenticated using (false);
+-- reservations 원본에는 정책을 만들지 않는다 → anon/authenticated 는 한 행도 볼 수 없다.
+-- 권한 자체도 회수해 실수로 노출되지 않게 한다.
+revoke all on public.reservations from anon, authenticated;
+revoke all on public.admin_config from anon, authenticated;
+revoke all on public.audit_logs from anon, authenticated;
 
+-- 익명에게는 마스킹 뷰만 열어준다.
 grant select on public.reservations_public to anon, authenticated;
 
 -- ---------------------------------------------------------------------
