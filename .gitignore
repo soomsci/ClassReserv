@@ -29,3 +29,6 @@ yarn-error.log*
 Thumbs.db
 desktop.ini
 .icloud
+
+# local dev data
+.data/

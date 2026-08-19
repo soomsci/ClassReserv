@@ -1,0 +1,25 @@
+import { NextResponse } from "next/server";
+
+import { clientKey, rateLimit } from "@/lib/ratelimit";
+import { createReservation, isError } from "@/lib/service";
+import type { ReservationInput } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
+
+/** POST /api/reservations — 예약 생성 */
+export async function POST(req: Request) {
+  if (!rateLimit(clientKey(req, "create"), 10, 60_000)) {
+    return NextResponse.json({ error: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요." }, { status: 429 });
+  }
+
+  let body: ReservationInput;
+  try {
+    body = (await req.json()) as ReservationInput;
+  } catch {
+    return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
+  }
+
+  const result = await createReservation(body);
+  if (isError(result)) return NextResponse.json(result, { status: 400 });
+  return NextResponse.json(result, { status: 201 });
+}
