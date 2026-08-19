@@ -1,6 +1,9 @@
 import WeekGrid from "@/components/WeekGrid";
 import { isSupabaseConfigured } from "@/lib/repo";
 
+// 개발 모드 안내 배너는 빌드 시점이 아니라 실행 시점의 환경변수로 판단해야 한다.
+export const dynamic = "force-dynamic";
+
 export default function ReservePage() {
   const local = !isSupabaseConfigured();
 
