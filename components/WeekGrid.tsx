@@ -98,7 +98,7 @@ export default function WeekGrid() {
       </div>
 
       {/* 주간 이동 */}
-      <div className="mb-3 flex items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => setMonday(addDays(monday, -7))}
@@ -106,7 +106,7 @@ export default function WeekGrid() {
         >
           ◀ 이전 주
         </button>
-        <span className="min-w-[15rem] text-center text-sm font-medium text-slate-700">
+        <span className="order-last w-full text-center text-sm font-medium text-slate-700 sm:order-none sm:w-auto sm:min-w-[15rem]">
           {weekLabel(monday)}
         </span>
         <button
@@ -130,8 +130,19 @@ export default function WeekGrid() {
         <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
-      {/* 시간표 */}
-      <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+      {/* 모바일 세로: 하루씩 보기 (표는 가로 스크롤이 필요해 작은 화면에서 숨긴다) */}
+      <div className="sm:hidden">
+        <DayList
+          dates={dates}
+          today={today}
+          mine={mine}
+          cellData={cellData}
+          onPick={(t) => setTarget(t)}
+        />
+      </div>
+
+      {/* 태블릿·PC: 주간 표 */}
+      <div className="hidden overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-200 sm:block">
         <table className="w-full min-w-[46rem] border-collapse text-sm">
           <thead>
             <tr>
@@ -181,6 +192,140 @@ export default function WeekGrid() {
             if (changed) void load();
           }}
         />
+      )}
+    </div>
+  );
+}
+
+type CellReader = (
+  date: string,
+  periodNo: number,
+) => {
+  holiday?: { name: string };
+  fixed?: { label: string };
+  reservation?: PublicReservation;
+};
+
+/** 모바일 세로용 하루씩 보기 */
+function DayList({
+  dates,
+  today,
+  mine,
+  cellData,
+  onPick,
+}: {
+  dates: string[];
+  today: string;
+  mine: string[];
+  cellData: CellReader;
+  onPick: (t: Target) => void;
+}) {
+  const [selected, setSelected] = useState<string>(dates.includes(today) ? today : dates[0]);
+  const monday = dates[0];
+
+  // 주를 이동하면 그 주의 오늘(없으면 월요일)로 맞춘다.
+  useEffect(() => {
+    setSelected((prev) => {
+      const inWeek = prev >= monday && prev <= addDays(monday, 4);
+      if (inWeek) return prev;
+      return today >= monday && today <= addDays(monday, 4) ? today : monday;
+    });
+  }, [monday, today]);
+
+  const weekday = weekdayOf(selected);
+  const holiday = cellData(selected, 1).holiday;
+  const periods = PERIODS.filter((p) => periodExists(weekday, p.no));
+
+  return (
+    <div>
+      <div className="mb-2 grid grid-cols-5 gap-1">
+        {dates.map((d) => {
+          const active = d === selected;
+          return (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setSelected(d)}
+              className={
+                "rounded-lg py-2 text-center transition " +
+                (active
+                  ? "bg-slate-900 text-white"
+                  : d === today
+                    ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                    : "bg-white text-slate-600 ring-1 ring-slate-200")
+              }
+            >
+              <div className="text-sm font-semibold">{WEEKDAY_LABELS[weekdayOf(d) % 7]}</div>
+              <div className="text-[11px] opacity-80">{shortDate(d)}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {holiday ? (
+        <p className="rounded-xl bg-white px-4 py-8 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
+          {holiday.name} — 휴업일이라 예약할 수 없습니다.
+        </p>
+      ) : (
+        <ul className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+          {periods.map((p) => {
+            const { fixed, reservation } = cellData(selected, p.no);
+            const past = isPastSlot(selected, p.end);
+            const isMine = reservation ? mine.includes(reservation.id) : false;
+
+            return (
+              <li key={p.no} className="border-b border-slate-100 last:border-0">
+                {p.no === LUNCH.afterPeriod + 1 && (
+                  <div className="border-b border-slate-100 bg-slate-50 py-1 text-center text-[11px] text-slate-500">
+                    점심시간 {LUNCH.start} ~ {LUNCH.end}
+                  </div>
+                )}
+
+                <div className="flex items-stretch gap-2 p-2">
+                  <div className="w-16 shrink-0 py-1 text-center">
+                    <div className="text-sm font-semibold text-slate-700">{p.no}교시</div>
+                    <div className="text-[10px] text-slate-400">{p.start}</div>
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    {fixed ? (
+                      <div className="rounded-lg bg-amber-50 px-3 py-2">
+                        <div className="text-[11px] font-medium text-amber-800">🔒 고정 점유</div>
+                        <div className="truncate text-sm text-amber-900">{fixed.label}</div>
+                      </div>
+                    ) : reservation ? (
+                      <button
+                        type="button"
+                        onClick={() => onPick({ date: selected, periodNo: p.no, existing: reservation })}
+                        className={
+                          "w-full rounded-lg px-3 py-2 text-left " +
+                          (isMine ? "bg-blue-100 ring-1 ring-blue-300" : "bg-slate-100")
+                        }
+                      >
+                        <div className="truncate text-sm font-semibold text-slate-800">
+                          {reservation.subject} · {reservation.maskedName}
+                        </div>
+                        <div className="truncate text-xs text-slate-500">
+                          {gradeClassLabel(reservation)} · {reservation.device}
+                        </div>
+                      </button>
+                    ) : past ? (
+                      <div className="px-3 py-3 text-xs text-slate-300">지난 시간</div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onPick({ date: selected, periodNo: p.no, existing: null })}
+                        className="w-full rounded-lg border border-dashed border-slate-300 px-3 py-3 text-sm text-slate-400"
+                      >
+                        + 예약
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );
