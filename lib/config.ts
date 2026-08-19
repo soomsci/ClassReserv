@@ -62,6 +62,7 @@ export const SUBJECTS = [
   "음악",
   "체육",
   "도덕",
+  "한문",
   "창의적체험활동",
   "자유학기",
   "방과후",
@@ -70,12 +71,9 @@ export const SUBJECTS = [
 
 /** roomId가 null이면 모든 특별실 공통 항목 */
 export const DEVICES: { name: string; roomId: RoomId | null }[] = [
-  { name: "데스크톱PC", roomId: null },
+  { name: "디벗(서피스고)", roomId: null },
+  { name: "디벗(아이패드)", roomId: null },
   { name: "노트북", roomId: null },
-  { name: "태블릿", roomId: null },
-  { name: "VR기기", roomId: "ai" },
-  { name: "AI학습도구", roomId: "ai" },
-  { name: "3D프린터", roomId: "ai" },
   { name: "기기 미사용", roomId: null },
   { name: "기타", roomId: null },
 ];
