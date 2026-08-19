@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* 현황판의 다크 모드 토글용 (.dark 래퍼 기준) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   color-scheme: light;
 }
