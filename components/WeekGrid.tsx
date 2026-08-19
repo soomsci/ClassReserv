@@ -14,12 +14,22 @@ import { addDays, isPastSlot, mondayOf, shortDate, todayISO, weekLabel, weekdayO
 import type { PublicReservation, WeekSchedule } from "@/lib/types";
 import ReservationModal, { gradeClassLabel, readMine } from "./ReservationModal";
 
-type Target = { date: string; periodNo: number; existing: PublicReservation | null };
+type Target = {
+  roomId: string;
+  date: string;
+  periodNo: number;
+  existing: PublicReservation | null;
+};
+
+/** 모든 칸의 내용물을 같은 높이로 고정한다 (고정 점유·예약·빈 칸 모두 동일). */
+const CELL = "flex h-[3.75rem] w-full ";
 
 export default function WeekGrid() {
+  // roomId는 모바일(하루씩 보기)에서 어떤 특별실을 볼지에만 쓰인다.
+  // PC에서는 두 특별실을 함께 보여준다.
   const [roomId, setRoomId] = useState<string>(ROOMS[0].id);
   const [monday, setMonday] = useState<string>(() => mondayOf(todayISO()));
-  const [schedule, setSchedule] = useState<WeekSchedule | null>(null);
+  const [schedules, setSchedules] = useState<Record<string, WeekSchedule | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [target, setTarget] = useState<Target | null>(null);
@@ -31,21 +41,22 @@ export default function WeekGrid() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/schedule?room=${roomId}&monday=${monday}`, {
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "시간표를 불러오지 못했습니다.");
-        return;
-      }
-      setSchedule(data as WeekSchedule);
-    } catch {
-      setError("네트워크 오류가 발생했습니다.");
+      const results = await Promise.all(
+        ROOMS.map(async (room) => {
+          const res = await fetch(`/api/schedule?room=${room.id}&monday=${monday}`, {
+            cache: "no-store",
+          });
+          if (!res.ok) throw new Error((await res.json()).error ?? "시간표를 불러오지 못했습니다.");
+          return [room.id, (await res.json()) as WeekSchedule] as const;
+        }),
+      );
+      setSchedules(Object.fromEntries(results));
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : "네트워크 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
-  }, [roomId, monday]);
+  }, [monday]);
 
   useEffect(() => {
     void load();
@@ -54,7 +65,8 @@ export default function WeekGrid() {
   const dates = [0, 1, 2, 3, 4].map((i) => addDays(monday, i));
   const today = todayISO();
 
-  function cellData(date: string, periodNo: number) {
+  function cellData(room: string, date: string, periodNo: number) {
+    const schedule = schedules[room] ?? null;
     const holiday = schedule?.holidays.find((h) => h.date === date);
     const fixed = schedule?.fixedBlocks.find((f) => f.date === date && f.periodNo === periodNo);
     const reservation = schedule?.reservations.find(
@@ -78,8 +90,8 @@ export default function WeekGrid() {
         </a>
       </header>
 
-      {/* 특별실 탭 */}
-      <div className="mb-3 flex gap-2">
+      {/* 특별실 탭 — 모바일 전용 (PC는 두 실을 함께 표시) */}
+      <div className="mb-3 flex gap-2 sm:hidden">
         {ROOMS.map((r) => (
           <button
             key={r.id}
@@ -130,9 +142,10 @@ export default function WeekGrid() {
         <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
-      {/* 모바일 세로: 하루씩 보기 (표는 가로 스크롤이 필요해 작은 화면에서 숨긴다) */}
+      {/* 모바일 세로: 선택한 특별실을 하루씩 보기 (표는 가로 스크롤이 필요해 숨긴다) */}
       <div className="sm:hidden">
         <DayList
+          roomId={roomId}
           dates={dates}
           today={today}
           mine={mine}
@@ -141,8 +154,72 @@ export default function WeekGrid() {
         />
       </div>
 
-      {/* 태블릿·PC: 주간 표 */}
-      <div className="hidden overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-200 sm:block">
+      {/* 태블릿·PC: 두 특별실을 함께 표시 */}
+      <div className="hidden space-y-4 sm:block">
+        {ROOMS.map((room) => (
+          <RoomTable
+            key={room.id}
+            room={room}
+            dates={dates}
+            today={today}
+            mine={mine}
+            cellData={cellData}
+            onPick={(t) => setTarget(t)}
+          />
+        ))}
+      </div>
+
+      <Legend />
+
+      {target && (
+        <ReservationModal
+          roomId={target.roomId}
+          date={target.date}
+          periodNo={target.periodNo}
+          existing={target.existing}
+          onClose={(changed) => {
+            setTarget(null);
+            setMine(readMine());
+            if (changed) void load();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+type CellReader = (
+  room: string,
+  date: string,
+  periodNo: number,
+) => {
+  holiday?: { name: string };
+  fixed?: { label: string };
+  reservation?: PublicReservation;
+};
+
+/** PC용 특별실 1개 주간 표 */
+function RoomTable({
+  room,
+  dates,
+  today,
+  mine,
+  cellData,
+  onPick,
+}: {
+  room: { id: string; name: string };
+  dates: string[];
+  today: string;
+  mine: string[];
+  cellData: CellReader;
+  onPick: (t: Target) => void;
+}) {
+  return (
+    <section className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+      <h2 className="border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-base font-bold text-slate-900">
+        {room.name}
+      </h2>
+      <div className="overflow-x-auto">
         <table className="w-full min-w-[46rem] border-collapse text-sm">
           <thead>
             <tr>
@@ -166,54 +243,32 @@ export default function WeekGrid() {
             {PERIODS.map((p) => (
               <PeriodRow
                 key={p.no}
+                roomId={room.id}
                 periodNo={p.no}
                 dates={dates}
                 today={today}
                 mine={mine}
                 cellData={cellData}
-                onPick={(t) => setTarget(t)}
+                onPick={onPick}
               />
             ))}
           </tbody>
         </table>
       </div>
-
-      <Legend />
-
-      {target && (
-        <ReservationModal
-          roomId={roomId}
-          date={target.date}
-          periodNo={target.periodNo}
-          existing={target.existing}
-          onClose={(changed) => {
-            setTarget(null);
-            setMine(readMine());
-            if (changed) void load();
-          }}
-        />
-      )}
-    </div>
+    </section>
   );
 }
 
-type CellReader = (
-  date: string,
-  periodNo: number,
-) => {
-  holiday?: { name: string };
-  fixed?: { label: string };
-  reservation?: PublicReservation;
-};
-
 /** 모바일 세로용 하루씩 보기 */
 function DayList({
+  roomId,
   dates,
   today,
   mine,
   cellData,
   onPick,
 }: {
+  roomId: string;
   dates: string[];
   today: string;
   mine: string[];
@@ -233,7 +288,7 @@ function DayList({
   }, [monday, today]);
 
   const weekday = weekdayOf(selected);
-  const holiday = cellData(selected, 1).holiday;
+  const holiday = cellData(roomId, selected, 1).holiday;
   const periods = PERIODS.filter((p) => periodExists(weekday, p.no));
 
   return (
@@ -269,7 +324,7 @@ function DayList({
       ) : (
         <ul className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
           {periods.map((p) => {
-            const { fixed, reservation } = cellData(selected, p.no);
+            const { fixed, reservation } = cellData(roomId, selected, p.no);
             const past = isPastSlot(selected, p.end);
             const isMine = reservation ? mine.includes(reservation.id) : false;
 
@@ -296,7 +351,7 @@ function DayList({
                     ) : reservation ? (
                       <button
                         type="button"
-                        onClick={() => onPick({ date: selected, periodNo: p.no, existing: reservation })}
+                        onClick={() => onPick({ roomId, date: selected, periodNo: p.no, existing: reservation })}
                         className={
                           "w-full rounded-lg px-3 py-2 text-left " +
                           (isMine ? "bg-blue-100 ring-1 ring-blue-300" : "bg-slate-100")
@@ -314,7 +369,7 @@ function DayList({
                     ) : (
                       <button
                         type="button"
-                        onClick={() => onPick({ date: selected, periodNo: p.no, existing: null })}
+                        onClick={() => onPick({ roomId, date: selected, periodNo: p.no, existing: null })}
                         className="w-full rounded-lg border border-dashed border-slate-300 px-3 py-3 text-sm text-slate-400"
                       >
                         + 예약
@@ -332,6 +387,7 @@ function DayList({
 }
 
 function PeriodRow({
+  roomId,
   periodNo,
   dates,
   today,
@@ -339,15 +395,12 @@ function PeriodRow({
   cellData,
   onPick,
 }: {
+  roomId: string;
   periodNo: number;
   dates: string[];
   today: string;
   mine: string[];
-  cellData: (date: string, periodNo: number) => {
-    holiday?: { name: string };
-    fixed?: { label: string };
-    reservation?: PublicReservation;
-  };
+  cellData: CellReader;
   onPick: (t: Target) => void;
 }) {
   const { start, end } = periodTime(periodNo);
@@ -363,18 +416,21 @@ function PeriodRow({
         </th>
         {dates.map((date) => {
           const weekday = weekdayOf(date);
-          const { holiday, fixed, reservation } = cellData(date, periodNo);
+          const { holiday, fixed, reservation } = cellData(roomId, date, periodNo);
           const exists = periodExists(weekday, periodNo);
           const past = isPastSlot(date, end);
 
+          // 칸 높이는 내용과 무관하게 항상 같게 유지한다.
           const base =
-            "border-b border-l border-slate-100 px-1.5 py-1.5 align-top h-16 " +
+            "border-b border-l border-slate-100 p-1.5 align-middle " +
             (date === today ? "bg-blue-50/30 " : "");
 
           if (!exists) {
             return (
               <td key={date} className={base + "bg-slate-100/70"}>
-                <span className="text-[11px] text-slate-400">—</span>
+                <div className={CELL + "items-center justify-center text-[11px] text-slate-400"}>
+                  —
+                </div>
               </td>
             );
           }
@@ -382,16 +438,27 @@ function PeriodRow({
           if (holiday) {
             return (
               <td key={date} className={base + "bg-slate-100/70"}>
-                <span className="text-[11px] text-slate-500">{holiday.name}</span>
+                <div className={CELL + "items-center justify-center text-[11px] text-slate-500"}>
+                  {holiday.name}
+                </div>
               </td>
             );
           }
 
           if (fixed) {
             return (
-              <td key={date} className={base + "bg-amber-50"}>
-                <div className="text-[11px] font-medium text-amber-800">🔒 고정</div>
-                <div className="truncate text-[12px] text-amber-900">{fixed.label}</div>
+              <td key={date} className={base}>
+                <div
+                  className={
+                    CELL +
+                    "flex-col justify-center rounded-lg bg-amber-50 px-2 ring-1 ring-amber-100"
+                  }
+                >
+                  <div className="text-[11px] font-medium text-amber-800">🔒 고정</div>
+                  <div className="w-full truncate text-[12px] leading-tight text-amber-900">
+                    {fixed.label}
+                  </div>
+                </div>
               </td>
             );
           }
@@ -402,21 +469,22 @@ function PeriodRow({
               <td key={date} className={base}>
                 <button
                   type="button"
-                  onClick={() => onPick({ date, periodNo, existing: reservation })}
+                  onClick={() => onPick({ roomId, date, periodNo, existing: reservation })}
                   className={
-                    "h-full w-full rounded-lg px-2 py-1.5 text-left transition " +
+                    CELL +
+                    "flex-col justify-center overflow-hidden rounded-lg px-2 text-left transition " +
                     (isMine
                       ? "bg-blue-100 ring-1 ring-blue-300 hover:bg-blue-200"
                       : "bg-slate-100 hover:bg-slate-200")
                   }
                 >
-                  <div className="truncate text-[13px] font-semibold text-slate-800">
+                  <div className="w-full truncate text-[13px] font-semibold leading-tight text-slate-800">
                     {reservation.subject}
                   </div>
-                  <div className="truncate text-[12px] text-slate-600">
+                  <div className="w-full truncate text-[12px] leading-tight text-slate-600">
                     {reservation.maskedName}
                   </div>
-                  <div className="truncate text-[11px] text-slate-500">
+                  <div className="w-full truncate text-[11px] leading-tight text-slate-500">
                     {gradeClassLabel(reservation)}
                   </div>
                 </button>
@@ -425,15 +493,22 @@ function PeriodRow({
           }
 
           if (past) {
-            return <td key={date} className={base + "bg-slate-50"} />;
+            return (
+              <td key={date} className={base + "bg-slate-50"}>
+                <div className={CELL} />
+              </td>
+            );
           }
 
           return (
             <td key={date} className={base}>
               <button
                 type="button"
-                onClick={() => onPick({ date, periodNo, existing: null })}
-                className="h-full w-full rounded-lg border border-dashed border-slate-200 text-[12px] text-slate-400 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                onClick={() => onPick({ roomId, date, periodNo, existing: null })}
+                className={
+                  CELL +
+                  "items-center justify-center rounded-lg border border-dashed border-slate-200 text-[12px] text-slate-400 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                }
               >
                 + 예약
               </button>
