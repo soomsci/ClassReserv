@@ -196,4 +196,108 @@ export const supabaseRepo: Repo = {
     if (error) throw new Error(error.message);
     return (data as HolidayRow[]).map((h) => ({ id: h.id, date: h.date, name: h.name }));
   },
+
+  // --- 관리자 전용 ---
+
+  async listAllFixedBlocks() {
+    const [blocksRes, exRes] = await Promise.all([
+      db().from("fixed_blocks").select("*").order("room_id"),
+      db().from("fixed_exceptions").select("*"),
+    ]);
+    if (blocksRes.error) throw new Error(blocksRes.error.message);
+    if (exRes.error) throw new Error(exRes.error.message);
+
+    const blocks: FixedBlockRow[] = (blocksRes.data as Record<string, never>[]).map((b) => ({
+      id: b.id,
+      roomId: b.room_id,
+      weekday: b.weekday,
+      periodNo: b.period_no,
+      label: b.label,
+      teacherLabel: b.teacher_label ?? null,
+      startDate: b.start_date,
+      endDate: b.end_date,
+      isActive: b.is_active,
+    }));
+    const exceptions: FixedExceptionRow[] = (exRes.data as Record<string, never>[]).map((e) => ({
+      id: e.id,
+      fixedBlockId: e.fixed_block_id,
+      date: e.date,
+    }));
+    return { blocks, exceptions };
+  },
+
+  async createFixedBlock(row) {
+    const { data, error } = await db()
+      .from("fixed_blocks")
+      .insert({
+        room_id: row.roomId,
+        weekday: row.weekday,
+        period_no: row.periodNo,
+        label: row.label,
+        teacher_label: row.teacherLabel,
+        start_date: row.startDate,
+        end_date: row.endDate,
+        is_active: row.isActive,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return (data as { id: string }).id;
+  },
+
+  async deleteFixedBlock(id) {
+    const { error } = await db().from("fixed_blocks").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
+  async addFixedException(fixedBlockId, date) {
+    const { error } = await db()
+      .from("fixed_exceptions")
+      .upsert({ fixed_block_id: fixedBlockId, date }, { onConflict: "fixed_block_id,date" });
+    if (error) throw new Error(error.message);
+  },
+
+  async deleteFixedException(id) {
+    const { error } = await db().from("fixed_exceptions").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
+  async listAllHolidays() {
+    const { data, error } = await db().from("holidays").select("*").order("date");
+    if (error) throw new Error(error.message);
+    return data as HolidayRow[];
+  },
+
+  async createHoliday(date, name) {
+    const { error } = await db()
+      .from("holidays")
+      .upsert({ date, name }, { onConflict: "date" });
+    if (error) throw new Error(error.message);
+  },
+
+  async deleteHoliday(id) {
+    const { error } = await db().from("holidays").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
+  async listReservationsForAdmin(start, end, roomId) {
+    let query = db()
+      .from("reservations")
+      .select("*")
+      .gte("date", start)
+      .lte("date", end)
+      .order("date")
+      .order("period_no");
+    if (roomId) query = query.eq("room_id", roomId);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return (data as DbReservation[]).map(toRow);
+  },
+
+  async anonymizeBefore(date) {
+    const { data, error } = await db().rpc("anonymize_reservations", { before_date: date });
+    if (error) throw new Error(error.message);
+    return (data as number) ?? 0;
+  },
 };

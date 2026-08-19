@@ -41,4 +41,25 @@ export interface Repo {
   ): Promise<{ blocks: FixedBlockRow[]; exceptions: FixedExceptionRow[] }>;
 
   listHolidays(start: string, end: string): Promise<HolidayRow[]>;
+
+  // --- 관리자 전용 ---
+  listAllFixedBlocks(): Promise<{ blocks: FixedBlockRow[]; exceptions: FixedExceptionRow[] }>;
+  createFixedBlock(row: Omit<FixedBlockRow, "id">): Promise<string>;
+  deleteFixedBlock(id: string): Promise<void>;
+  addFixedException(fixedBlockId: string, date: string): Promise<void>;
+  deleteFixedException(id: string): Promise<void>;
+
+  listAllHolidays(): Promise<HolidayRow[]>;
+  createHoliday(date: string, name: string): Promise<void>;
+  deleteHoliday(id: string): Promise<void>;
+
+  /** 원본 이름·준비사항 포함. 관리자 화면에서만 사용한다. */
+  listReservationsForAdmin(
+    start: string,
+    end: string,
+    roomId?: string,
+  ): Promise<ReservationRow[]>;
+
+  /** 지정 날짜 이전 예약의 이름·준비사항을 지우고 통계용 필드만 남긴다. */
+  anonymizeBefore(date: string): Promise<number>;
 }

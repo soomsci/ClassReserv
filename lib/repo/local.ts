@@ -151,4 +151,102 @@ export const localRepo: Repo = {
     const db = await load();
     return db.holidays.filter((h) => h.date >= start && h.date <= end);
   },
+
+  // --- 관리자 전용 ---
+
+  async listAllFixedBlocks() {
+    const db = await load();
+    return { blocks: db.fixedBlocks, exceptions: db.fixedExceptions };
+  },
+
+  async createFixedBlock(row) {
+    return serialize(async () => {
+      const db = await load();
+      const id = randomUUID();
+      db.fixedBlocks.push({ ...row, id });
+      await save(db);
+      return id;
+    });
+  },
+
+  async deleteFixedBlock(id) {
+    await serialize(async () => {
+      const db = await load();
+      db.fixedBlocks = db.fixedBlocks.filter((b) => b.id !== id);
+      db.fixedExceptions = db.fixedExceptions.filter((e) => e.fixedBlockId !== id);
+      await save(db);
+    });
+  },
+
+  async addFixedException(fixedBlockId, date) {
+    await serialize(async () => {
+      const db = await load();
+      const exists = db.fixedExceptions.some(
+        (e) => e.fixedBlockId === fixedBlockId && e.date === date,
+      );
+      if (!exists) db.fixedExceptions.push({ id: randomUUID(), fixedBlockId, date });
+      await save(db);
+    });
+  },
+
+  async deleteFixedException(id) {
+    await serialize(async () => {
+      const db = await load();
+      db.fixedExceptions = db.fixedExceptions.filter((e) => e.id !== id);
+      await save(db);
+    });
+  },
+
+  async listAllHolidays() {
+    const db = await load();
+    return [...db.holidays].sort((a, b) => a.date.localeCompare(b.date));
+  },
+
+  async createHoliday(date, name) {
+    await serialize(async () => {
+      const db = await load();
+      if (!db.holidays.some((h) => h.date === date)) {
+        db.holidays.push({ id: randomUUID(), date, name });
+      }
+      await save(db);
+    });
+  },
+
+  async deleteHoliday(id) {
+    await serialize(async () => {
+      const db = await load();
+      db.holidays = db.holidays.filter((h) => h.id !== id);
+      await save(db);
+    });
+  },
+
+  async listReservationsForAdmin(start, end, roomId) {
+    const db = await load();
+    return db.reservations
+      .filter(
+        (r) =>
+          r.date >= start &&
+          r.date <= end &&
+          (roomId ? r.roomId === roomId : true),
+      )
+      .sort((a, b) => a.date.localeCompare(b.date) || a.periodNo - b.periodNo);
+  },
+
+  async anonymizeBefore(date) {
+    return serialize(async () => {
+      const db = await load();
+      let count = 0;
+      for (const r of db.reservations) {
+        if (r.date < date && !r.isAnonymized) {
+          r.teacherName = "(익명)";
+          r.notes = null;
+          r.isAnonymized = true;
+          r.updatedAt = new Date().toISOString();
+          count += 1;
+        }
+      }
+      await save(db);
+      return count;
+    });
+  },
 };
