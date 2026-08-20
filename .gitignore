@@ -32,3 +32,7 @@ desktop.ini
 
 # local dev data
 .data/
+
+# python (skill scripts)
+__pycache__/
+*.pyc
