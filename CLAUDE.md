@@ -301,3 +301,20 @@ audit_logs       id, action, target_type, target_id, actor('teacher'|'admin'),
 - 이름 마스킹은 **DB 뷰에서** 처리, 원본 이름을 익명 클라이언트로 전송 금지
 - PIN·서비스 키·세션 값은 클라이언트 번들·로그에 노출 금지
 - 커밋 전 `npm run build` 및 타입 체크 통과 확인
+
+---
+
+## 12. 부록 — 한글(HWP/HWPX) 문서 작업
+
+예약 현황을 한글 문서로 내보내는 등 `.hwp` / `.hwpx` 를 다뤄야 할 때는
+**직접 구현하지 말고** 아래 전용 스킬을 사용한다.
+
+- 저장소: https://github.com/Engccer/hwpx-automation
+- 사용: 저장소를 clone 한 뒤 `SKILL.md` 를 따른다.
+  환경 점검은 `python hwpx_edit.py --check-env`
+
+제공 기능: HWP→HWPX 변환(hwplib/hwpxlib, 서식 보존), HWPX→Markdown,
+MD/DOCX/HTML→HWPX, 표 셀 편집·텍스트 치환, 서명·도장 삽입, PDF 변환.
+문서를 처음부터 만드는 방법은 `reference/build-from-scratch.md` 에 있다.
+
+> OWPML 작성기를 새로 짜지 말 것. 위 스킬에 이미 있다.
