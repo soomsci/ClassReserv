@@ -100,6 +100,57 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 
 /* ------------------------------- 고정 점유 ------------------------------- */
 
+const WEEKDAY_NAME_TO_NUM: Record<string, number> = {
+  "월": 1, "월요일": 1,
+  "화": 2, "화요일": 2,
+  "수": 3, "수요일": 3,
+  "목": 4, "목요일": 4,
+  "금": 5, "금요일": 5,
+};
+
+type BulkRow = { weekday: number; periodNo: number; label: string; teacherLabel: string };
+
+/** 엑셀에서 복사한 표(탭 구분) 또는 쉼표 구분 텍스트를 파싱한다.
+ *  한 줄 형식: 요일  교시  라벨  [담당표시] */
+function parseBulkRows(text: string): { items: BulkRow[]; errors: string[] } {
+  const items: BulkRow[] = [];
+  const errors: string[] = [];
+
+  text.split(/\r?\n/).forEach((raw, idx) => {
+    const line = raw.trim();
+    if (!line) return;
+
+    let cells = line.split("\t").map((c) => c.trim());
+    if (cells.length < 3) cells = line.split(",").map((c) => c.trim());
+    if (cells.length < 3) cells = line.split(/\s{2,}/).map((c) => c.trim());
+    if (cells.length < 3) {
+      errors.push(`${idx + 1}행: 요일·교시·라벨을 구분할 수 없습니다 — "${line}"`);
+      return;
+    }
+
+    const [weekdayRaw, periodRaw, label, teacherLabel = ""] = cells;
+    const weekday = WEEKDAY_NAME_TO_NUM[weekdayRaw] ?? Number(weekdayRaw);
+    const periodNo = Number(periodRaw);
+
+    if (!weekday || weekday < 1 || weekday > 5) {
+      errors.push(`${idx + 1}행: 요일을 알 수 없습니다 — "${weekdayRaw}"`);
+      return;
+    }
+    if (!periodNo || !Number.isInteger(periodNo)) {
+      errors.push(`${idx + 1}행: 교시를 알 수 없습니다 — "${periodRaw}"`);
+      return;
+    }
+    if (!label) {
+      errors.push(`${idx + 1}행: 표시 이름이 비어 있습니다.`);
+      return;
+    }
+
+    items.push({ weekday, periodNo, label, teacherLabel });
+  });
+
+  return { items, errors };
+}
+
 function FixedTab() {
   const [blocks, setBlocks] = useState<FixedBlockRow[]>([]);
   const [exceptions, setExceptions] = useState<FixedExceptionRow[]>([]);
@@ -112,6 +163,10 @@ function FixedTab() {
   const [teacherLabel, setTeacherLabel] = useState("");
   const [startDate, setStartDate] = useState(todayISO());
   const [endDate, setEndDate] = useState(addDays(todayISO(), 120));
+
+  const [bulkText, setBulkText] = useState("");
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [bulkErrors, setBulkErrors] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/fixed", { cache: "no-store" });
@@ -149,6 +204,35 @@ function FixedTab() {
     setPeriods([]);
     setLabel("");
     setTeacherLabel("");
+    void load();
+  }
+
+  async function submitBulk() {
+    setBulkMessage("");
+    const { items, errors } = parseBulkRows(bulkText);
+    setBulkErrors(errors);
+
+    if (items.length === 0) {
+      setBulkMessage(
+        errors.length > 0 ? "등록할 수 있는 줄이 없습니다. 형식을 확인해 주세요." : "붙여넣은 내용이 없습니다.",
+      );
+      return;
+    }
+
+    const res = await fetch("/api/admin/fixed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomId, startDate, endDate, items }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setBulkMessage(data.error ?? "등록에 실패했습니다.");
+      return;
+    }
+    setBulkMessage(
+      `${data.created}개 등록 완료` + (errors.length > 0 ? ` · 형식 오류 ${errors.length}줄은 건너뛰었습니다.` : ""),
+    );
+    setBulkText("");
     void load();
   }
 
@@ -267,6 +351,41 @@ function FixedTab() {
           className="mt-3 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white"
         >
           등록
+        </button>
+      </Card>
+
+      <Card title="여러 개 한 번에 등록 (엑셀 붙여넣기)">
+        <p className="mb-2 text-sm text-slate-600">
+          위에서 선택한 <b>{roomName(roomId)}</b> · 적용 기간 <b>{startDate} ~ {endDate}</b> 에 등록됩니다.
+          엑셀에서 <b>요일 · 교시 · 라벨</b>(선택: 담당 표시) 순서로 표를 만들어 복사한 뒤 그대로 붙여넣으세요.
+          한 줄에 한 칸씩, 탭이나 쉼표로 구분됩니다.
+        </p>
+        <textarea
+          value={bulkText}
+          onChange={(e) => setBulkText(e.target.value)}
+          rows={6}
+          placeholder={"월\t1\t정보 3-1\n월\t2\t정보 3-2\n화\t1\t정보 2-1\n화\t2\t정보 2-2"}
+          spellCheck={false}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"
+        />
+
+        {bulkErrors.length > 0 && (
+          <ul className="mt-2 space-y-0.5 text-xs text-amber-700">
+            {bulkErrors.map((e, i) => (
+              <li key={i}>⚠ {e}</li>
+            ))}
+          </ul>
+        )}
+
+        {bulkMessage && <p className="mt-2 text-sm text-slate-700">{bulkMessage}</p>}
+
+        <button
+          type="button"
+          onClick={submitBulk}
+          disabled={!bulkText.trim()}
+          className="mt-3 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white disabled:bg-slate-300"
+        >
+          일괄 등록
         </button>
       </Card>
 

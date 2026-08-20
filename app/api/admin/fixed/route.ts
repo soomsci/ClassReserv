@@ -21,17 +21,27 @@ export async function GET() {
   return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
 }
 
-type CreateBody = {
-  roomId: string;
-  weekdays: number[];
-  periods: number[];
+type BulkItem = {
+  weekday: number;
+  periodNo: number;
   label: string;
   teacherLabel?: string;
-  startDate: string;
-  endDate: string;
 };
 
-/** POST /api/admin/fixed — 요일·교시를 여러 개 골라 한 번에 등록 */
+type CreateBody = {
+  roomId: string;
+  startDate: string;
+  endDate: string;
+  // 방식 1: 요일·교시를 다중 선택해 같은 라벨로 한 번에 등록
+  weekdays?: number[];
+  periods?: number[];
+  label?: string;
+  teacherLabel?: string;
+  // 방식 2: 붙여넣기로 요일·교시·라벨이 서로 다른 여러 줄을 한 번에 등록
+  items?: BulkItem[];
+};
+
+/** POST /api/admin/fixed — 요일·교시를 여러 개 골라 한 번에 등록, 또는 items로 여러 줄을 한 번에 등록 */
 export async function POST(req: Request) {
   const denied = await guard();
   if (denied) return denied;
@@ -41,10 +51,6 @@ export async function POST(req: Request) {
 
   if (!ROOMS.some((r) => r.id === body.roomId))
     return NextResponse.json({ error: "특별실을 선택해 주세요." }, { status: 400 });
-  if (!body.weekdays?.length || !body.periods?.length)
-    return NextResponse.json({ error: "요일과 교시를 선택해 주세요." }, { status: 400 });
-  if (!body.label?.trim())
-    return NextResponse.json({ error: "표시할 이름(라벨)을 입력해 주세요." }, { status: 400 });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(body.startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(body.endDate))
     return NextResponse.json({ error: "적용 기간을 올바르게 입력해 주세요." }, { status: 400 });
   if (body.startDate > body.endDate)
@@ -52,6 +58,39 @@ export async function POST(req: Request) {
 
   const repo = getRepo();
   let created = 0;
+
+  if (Array.isArray(body.items)) {
+    if (body.items.length === 0)
+      return NextResponse.json({ error: "등록할 항목이 없습니다." }, { status: 400 });
+
+    for (const item of body.items) {
+      const weekday = Number(item.weekday);
+      const periodNo = Number(item.periodNo);
+      const label = (item.label ?? "").trim();
+      if (weekday < 1 || weekday > 5) continue;
+      if (!PERIODS.some((p) => p.no === periodNo)) continue;
+      if (!periodExists(weekday, periodNo)) continue; // 해당 요일에 없는 교시는 건너뛴다
+      if (!label) continue;
+      await repo.createFixedBlock({
+        roomId: body.roomId,
+        weekday,
+        periodNo,
+        label,
+        teacherLabel: item.teacherLabel?.trim() || null,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        isActive: true,
+      });
+      created += 1;
+    }
+
+    return NextResponse.json({ created }, { status: 201 });
+  }
+
+  if (!body.weekdays?.length || !body.periods?.length)
+    return NextResponse.json({ error: "요일과 교시를 선택해 주세요." }, { status: 400 });
+  if (!body.label?.trim())
+    return NextResponse.json({ error: "표시할 이름(라벨)을 입력해 주세요." }, { status: 400 });
 
   for (const weekday of body.weekdays) {
     if (weekday < 1 || weekday > 5) continue;
