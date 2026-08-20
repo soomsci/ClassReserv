@@ -19,6 +19,7 @@ type AdminReservation = {
   grade: string;
   classNo: string;
   device: string;
+  needsAiCoordinator: boolean;
   notes: string;
   status: "active" | "cancelled";
 };
@@ -573,6 +574,7 @@ function ReservationTab() {
               <th>교사명</th>
               <th>학년·반</th>
               <th>기기</th>
+              <th>AI코디</th>
               <th>준비사항</th>
               <th>상태</th>
               <th />
@@ -581,7 +583,7 @@ function ReservationTab() {
           <tbody>
             {loaded && rows.length === 0 && (
               <tr>
-                <td colSpan={10} className="py-4 text-center text-slate-500">
+                <td colSpan={11} className="py-4 text-center text-slate-500">
                   해당 기간에 예약이 없습니다.
                 </td>
               </tr>
@@ -595,6 +597,7 @@ function ReservationTab() {
                 <td>{r.teacherName}</td>
                 <td className="whitespace-nowrap">{gradeClassLabel(r)}</td>
                 <td>{r.device}</td>
+                <td className="whitespace-nowrap">{r.needsAiCoordinator ? "필요" : "-"}</td>
                 <td className="max-w-[16rem] text-slate-600">{r.notes}</td>
                 <td className={r.status === "active" ? "text-slate-700" : "text-slate-400"}>
                   {r.status === "active" ? "예약" : "취소됨"}

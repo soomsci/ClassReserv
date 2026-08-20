@@ -297,6 +297,11 @@ function SlotText({ r }: { r: PublicReservation }) {
       <span>{r.maskedName}</span>
       <span className="text-slate-500 dark:text-slate-400">{gradeClassLabel(r)}</span>
       <span className="text-slate-400 dark:text-slate-500">· {r.device}</span>
+      {r.needsAiCoordinator && (
+        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+          AI코디
+        </span>
+      )}
     </span>
   );
 }
@@ -379,7 +384,14 @@ function WeekCard({
                         </span>
                       ) : reservation ? (
                         <div className="leading-tight">
-                          <div className="truncate font-semibold">{reservation.subject}</div>
+                          <div className="truncate font-semibold">
+                            {reservation.subject}
+                            {reservation.needsAiCoordinator && (
+                              <span className="ml-1 rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 align-middle">
+                                AI코디
+                              </span>
+                            )}
+                          </div>
                           <div className="truncate text-slate-600 dark:text-slate-300">
                             {reservation.maskedName}
                           </div>

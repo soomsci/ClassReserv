@@ -23,6 +23,7 @@ create table if not exists public.reservations (
   grade         text        not null,
   class_no      text        not null,
   device        text        not null,
+  needs_ai_coordinator boolean not null default false,
   notes         text,
   pin_hash      text        not null,
   failed_count  smallint    not null default 0,
@@ -32,6 +33,10 @@ create table if not exists public.reservations (
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
+
+-- 이미 배포된 DB에도 반영되도록 컬럼을 별도로 보장한다.
+alter table public.reservations
+  add column if not exists needs_ai_coordinator boolean not null default false;
 
 -- 같은 특별실·날짜·교시에는 살아있는 예약이 하나만 존재할 수 있다.
 create unique index if not exists reservations_slot_unique
@@ -131,7 +136,8 @@ select
   grade,
   class_no,
   device,
-  (notes is not null and btrim(notes) <> '') as has_notes
+  (notes is not null and btrim(notes) <> '') as has_notes,
+  needs_ai_coordinator
 from public.reservations
 where status = 'active';
 

@@ -53,6 +53,7 @@ function toPublic(r: ReservationRow): PublicReservation {
     grade: r.grade,
     classNo: r.classNo,
     device: r.device,
+    needsAiCoordinator: r.needsAiCoordinator,
     hasNotes: Boolean(r.notes && r.notes.trim()),
   };
 }
@@ -68,6 +69,7 @@ function toOwner(r: ReservationRow): OwnerReservation {
     grade: r.grade,
     classNo: r.classNo,
     device: r.device,
+    needsAiCoordinator: r.needsAiCoordinator,
     notes: r.notes ?? "",
   };
 }
@@ -201,6 +203,7 @@ export async function createReservation(
     grade: input.grade,
     classNo: input.classNo,
     device: input.device,
+    needsAiCoordinator: Boolean(input.needsAiCoordinator),
     notes: input.notes?.trim() ? input.notes.trim() : null,
     pinHash,
   });
@@ -262,6 +265,7 @@ export async function updateReservation(
     grade: merged.grade,
     classNo: merged.classNo,
     device: merged.device,
+    needsAiCoordinator: Boolean(merged.needsAiCoordinator),
     notes: merged.notes?.trim() ? merged.notes.trim() : null,
   });
   return { id };

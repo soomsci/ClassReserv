@@ -37,6 +37,7 @@ export async function GET(req: Request) {
     "학년",
     "반",
     "활용기기",
+    "AI 코디네이터",
     "필요 및 준비사항",
     "상태",
   ];
@@ -56,6 +57,7 @@ export async function GET(req: Request) {
         r.grade,
         r.classNo,
         r.device,
+        r.needsAiCoordinator ? "필요" : "",
         r.notes ?? "",
         r.status === "active" ? "예약" : "취소",
       ]

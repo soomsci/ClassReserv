@@ -9,6 +9,7 @@ export type ReservationRow = {
   grade: string;
   classNo: string;
   device: string;
+  needsAiCoordinator: boolean;
   notes: string | null;
   pinHash: string;
   failedCount: number;
@@ -30,6 +31,7 @@ export type PublicReservation = {
   grade: string;
   classNo: string;
   device: string;
+  needsAiCoordinator: boolean;
   hasNotes: boolean;
 };
 
@@ -44,6 +46,7 @@ export type OwnerReservation = {
   grade: string;
   classNo: string;
   device: string;
+  needsAiCoordinator: boolean;
   notes: string;
 };
 
@@ -90,6 +93,7 @@ export type ReservationInput = {
   grade: string;
   classNo: string;
   device: string;
+  needsAiCoordinator: boolean;
   notes: string;
   pin: string;
 };

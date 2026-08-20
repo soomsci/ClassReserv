@@ -359,6 +359,11 @@ function DayList({
                       >
                         <div className="truncate text-sm font-semibold text-slate-800">
                           {reservation.subject} · {reservation.maskedName}
+                          {reservation.needsAiCoordinator && (
+                            <span className="ml-1 rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-medium text-emerald-700 align-middle">
+                              AI코디
+                            </span>
+                          )}
                         </div>
                         <div className="truncate text-xs text-slate-500">
                           {gradeClassLabel(reservation)} · {reservation.device}
@@ -480,6 +485,11 @@ function PeriodRow({
                 >
                   <div className="w-full truncate text-[13px] font-semibold leading-tight text-slate-800">
                     {reservation.subject}
+                    {reservation.needsAiCoordinator && (
+                      <span className="ml-1 rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-medium text-emerald-700 align-middle">
+                        AI코디
+                      </span>
+                    )}
                   </div>
                   <div className="w-full truncate text-[12px] leading-tight text-slate-600">
                     {reservation.maskedName}
@@ -545,6 +555,12 @@ function Legend() {
       <span>
         <span className="mr-1 inline-block h-3 w-3 rounded bg-amber-50 ring-1 ring-amber-200 align-middle" />
         고정 점유
+      </span>
+      <span>
+        <span className="mr-1 rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-medium text-emerald-700 align-middle">
+          AI코디
+        </span>
+        AI 코디네이터(보조강사) 필요
       </span>
       <span>교사명은 가운데 글자를 가려 표시합니다.</span>
     </div>

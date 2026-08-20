@@ -52,6 +52,7 @@ type Form = {
   grade: string;
   classNo: string;
   device: string;
+  needsAiCoordinator: boolean;
   notes: string;
 };
 
@@ -61,6 +62,7 @@ const emptyForm: Form = {
   grade: "",
   classNo: "",
   device: "",
+  needsAiCoordinator: false,
   notes: "",
 };
 
@@ -137,6 +139,7 @@ export default function ReservationModal({ roomId, date, periodNo, existing, onC
         grade: owner.grade,
         classNo: owner.classNo,
         device: owner.device,
+        needsAiCoordinator: owner.needsAiCoordinator,
         notes: owner.notes ?? "",
       });
       setMode("edit");
@@ -221,6 +224,10 @@ export default function ReservationModal({ roomId, date, periodNo, existing, onC
               <dd className="col-span-2 font-medium">{gradeClassLabel(existing)}</dd>
               <dt className="text-slate-500">활용기기</dt>
               <dd className="col-span-2 font-medium">{existing.device}</dd>
+              <dt className="text-slate-500">AI 코디네이터</dt>
+              <dd className="col-span-2 font-medium">
+                {existing.needsAiCoordinator ? "필요 (보조강사 요청)" : "불필요"}
+              </dd>
               <dt className="text-slate-500">준비사항</dt>
               <dd className="col-span-2 text-slate-500">
                 {existing.hasNotes ? "작성됨 (관리자만 열람)" : "없음"}
@@ -344,6 +351,16 @@ export default function ReservationModal({ roomId, date, periodNo, existing, onC
                 ))}
               </select>
             </Field>
+
+            <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.needsAiCoordinator}
+                onChange={(e) => set("needsAiCoordinator", e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              AI 코디네이터(보조강사) 필요
+            </label>
 
             <Field label="필요 및 준비사항 (선택)">
               <textarea

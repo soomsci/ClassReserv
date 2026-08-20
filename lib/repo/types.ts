@@ -13,7 +13,7 @@ export type NewReservation = Omit<
 export type ReservationPatch = Partial<
   Pick<
     ReservationRow,
-    "subject" | "teacherName" | "grade" | "classNo" | "device" | "notes"
+    "subject" | "teacherName" | "grade" | "classNo" | "device" | "needsAiCoordinator" | "notes"
   >
 >;
 

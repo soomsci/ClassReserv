@@ -35,6 +35,7 @@ type DbReservation = {
   grade: string;
   class_no: string;
   device: string;
+  needs_ai_coordinator: boolean;
   notes: string | null;
   pin_hash: string;
   failed_count: number;
@@ -56,6 +57,7 @@ function toRow(r: DbReservation): ReservationRow {
     grade: r.grade,
     classNo: r.class_no,
     device: r.device,
+    needsAiCoordinator: r.needs_ai_coordinator,
     notes: r.notes,
     pinHash: r.pin_hash,
     failedCount: r.failed_count,
@@ -100,6 +102,7 @@ export const supabaseRepo: Repo = {
         grade: row.grade,
         class_no: row.classNo,
         device: row.device,
+        needs_ai_coordinator: row.needsAiCoordinator,
         notes: row.notes,
         pin_hash: row.pinHash,
       })
@@ -121,6 +124,8 @@ export const supabaseRepo: Repo = {
     if (patch.grade !== undefined) payload.grade = patch.grade;
     if (patch.classNo !== undefined) payload.class_no = patch.classNo;
     if (patch.device !== undefined) payload.device = patch.device;
+    if (patch.needsAiCoordinator !== undefined)
+      payload.needs_ai_coordinator = patch.needsAiCoordinator;
     if (patch.notes !== undefined) payload.notes = patch.notes;
 
     const { error } = await db().from("reservations").update(payload).eq("id", id);

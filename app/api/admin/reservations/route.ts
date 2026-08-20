@@ -41,6 +41,7 @@ export async function GET(req: Request) {
         grade: r.grade,
         classNo: r.classNo,
         device: r.device,
+        needsAiCoordinator: r.needsAiCoordinator,
         notes: r.notes ?? "",
         status: r.status,
         createdAt: r.createdAt,
