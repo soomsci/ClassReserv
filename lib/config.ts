@@ -4,15 +4,29 @@
  * 지금은 이 파일의 값이 초기값 겸 기본값 역할을 한다.
  */
 
-export type RoomId = "computer" | "ai";
+export type RoomId = "computer" | "ai" | "culture" | "parent" | "multipurpose";
 
-export const ROOMS: { id: RoomId; name: string; sortOrder: number }[] = [
-  { id: "computer", name: "컴퓨터실", sortOrder: 1 },
-  { id: "ai", name: "AI실", sortOrder: 2 },
+export type RoomGroupId = "special" | "shared";
+
+export const ROOM_GROUPS: { id: RoomGroupId; name: string; sortOrder: number }[] = [
+  { id: "special", name: "특별실", sortOrder: 1 },
+  { id: "shared", name: "공용공간", sortOrder: 2 },
+];
+
+export const ROOMS: { id: RoomId; name: string; groupId: RoomGroupId; sortOrder: number }[] = [
+  { id: "computer", name: "컴퓨터실", groupId: "special", sortOrder: 1 },
+  { id: "ai", name: "AI실", groupId: "special", sortOrder: 2 },
+  { id: "culture", name: "복합문화공간", groupId: "shared", sortOrder: 3 },
+  { id: "parent", name: "학부모회의실", groupId: "shared", sortOrder: 4 },
+  { id: "multipurpose", name: "다목적실", groupId: "shared", sortOrder: 5 },
 ];
 
 export function roomName(id: string): string {
   return ROOMS.find((r) => r.id === id)?.name ?? id;
+}
+
+export function roomsInGroup(groupId: RoomGroupId) {
+  return ROOMS.filter((r) => r.groupId === groupId);
 }
 
 /** 45분 수업 + 10분 쉬는 시간, 점심 12:20~13:20 */

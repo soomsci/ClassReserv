@@ -6,9 +6,12 @@ import {
   LUNCH,
   PERIODS,
   ROOMS,
+  ROOM_GROUPS,
   WEEKDAY_LABELS,
   periodExists,
   periodTime,
+  roomsInGroup,
+  type RoomGroupId,
 } from "@/lib/config";
 import { addDays, isPastSlot, mondayOf, shortDate, todayISO, weekLabel, weekdayOf } from "@/lib/date";
 import type { PublicReservation, WeekSchedule } from "@/lib/types";
@@ -25,9 +28,13 @@ type Target = {
 const CELL = "flex h-[3.75rem] w-full ";
 
 export default function WeekGrid() {
-  // roomId는 모바일(하루씩 보기)에서 어떤 특별실을 볼지에만 쓰인다.
-  // PC에서는 두 특별실을 함께 보여준다.
-  const [roomId, setRoomId] = useState<string>(ROOMS[0].id);
+  // 실 그룹(특별실 / 공용공간) — 그룹 안의 실들만 화면에 표시한다.
+  const [groupId, setGroupId] = useState<RoomGroupId>(ROOM_GROUPS[0].id);
+  const groupRooms = roomsInGroup(groupId);
+
+  // roomId는 모바일(하루씩 보기)에서 그룹 내 어떤 실을 볼지에만 쓰인다.
+  // PC에서는 그룹 내 실을 모두 함께 보여준다.
+  const [roomId, setRoomId] = useState<string>(groupRooms[0].id);
   const [monday, setMonday] = useState<string>(() => mondayOf(todayISO()));
   const [schedules, setSchedules] = useState<Record<string, WeekSchedule | null>>({});
   const [loading, setLoading] = useState(true);
@@ -36,6 +43,13 @@ export default function WeekGrid() {
   const [mine, setMine] = useState<string[]>([]);
 
   useEffect(() => setMine(readMine()), []);
+
+  // 그룹을 바꾸면 모바일 뷰의 선택 실을 그 그룹의 첫 실로 맞춘다.
+  useEffect(() => {
+    const rooms = roomsInGroup(groupId);
+    setRoomId((prev) => (rooms.some((r) => r.id === prev) ? prev : rooms[0].id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -90,9 +104,28 @@ export default function WeekGrid() {
         </a>
       </header>
 
-      {/* 특별실 탭 — 모바일 전용 (PC는 두 실을 함께 표시) */}
+      {/* 실 그룹 탭 — 특별실(컴퓨터실·AI실) / 공용공간(복합문화공간 등) */}
+      <div className="mb-3 flex gap-2">
+        {ROOM_GROUPS.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            onClick={() => setGroupId(g.id)}
+            className={
+              "rounded-lg px-4 py-2 text-sm font-semibold transition " +
+              (groupId === g.id
+                ? "bg-slate-900 text-white"
+                : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")
+            }
+          >
+            {g.name}
+          </button>
+        ))}
+      </div>
+
+      {/* 실 탭 — 모바일 전용 (PC는 그룹 내 실을 함께 표시) */}
       <div className="mb-3 flex gap-2 sm:hidden">
-        {ROOMS.map((r) => (
+        {groupRooms.map((r) => (
           <button
             key={r.id}
             type="button"
@@ -154,9 +187,9 @@ export default function WeekGrid() {
         />
       </div>
 
-      {/* 태블릿·PC: 두 특별실을 함께 표시 */}
+      {/* 태블릿·PC: 그룹 내 실을 함께 표시 */}
       <div className="hidden space-y-4 sm:block">
-        {ROOMS.map((room) => (
+        {groupRooms.map((room) => (
           <RoomTable
             key={room.id}
             room={room}

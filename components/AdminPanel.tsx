@@ -393,29 +393,41 @@ function FixedTab() {
         {blocks.length === 0 ? (
           <p className="text-sm text-slate-500">아직 등록된 고정 점유가 없습니다.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[46rem] text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-                  <th className="py-2">특별실</th>
-                  <th>요일·교시</th>
-                  <th>표시 이름</th>
-                  <th>적용 기간</th>
-                  <th>해제된 날짜</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {blocks.map((b) => (
-                  <FixedRow
-                    key={b.id}
-                    block={b}
-                    exceptions={exceptions.filter((e) => e.fixedBlockId === b.id)}
-                    onChanged={load}
-                  />
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-6">
+            {ROOMS.filter((room) => blocks.some((b) => b.roomId === room.id)).map((room) => {
+              const roomBlocks = blocks.filter((b) => b.roomId === room.id);
+              return (
+                <div key={room.id}>
+                  <h3 className="mb-2 text-sm font-semibold text-slate-800">
+                    {room.name}{" "}
+                    <span className="font-normal text-slate-400">({roomBlocks.length})</span>
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[40rem] text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+                          <th className="py-2">요일·교시</th>
+                          <th>표시 이름</th>
+                          <th>적용 기간</th>
+                          <th>해제된 날짜</th>
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {roomBlocks.map((b) => (
+                          <FixedRow
+                            key={b.id}
+                            block={b}
+                            exceptions={exceptions.filter((e) => e.fixedBlockId === b.id)}
+                            onChanged={load}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </Card>
@@ -447,8 +459,7 @@ function FixedRow({
 
   return (
     <tr className="border-b border-slate-100 align-top">
-      <td className="py-2">{roomName(block.roomId)}</td>
-      <td>
+      <td className="py-2">
         {WEEKDAY_LABELS[block.weekday]}요일 {block.periodNo}교시
       </td>
       <td>
