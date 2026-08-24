@@ -4,7 +4,7 @@
  * 지금은 이 파일의 값이 초기값 겸 기본값 역할을 한다.
  */
 
-export type RoomId = "computer" | "ai" | "culture" | "parent" | "multipurpose";
+export type RoomId = "computer" | "ai" | "culture" | "multipurpose";
 
 export type RoomGroupId = "special" | "shared";
 
@@ -17,8 +17,7 @@ export const ROOMS: { id: RoomId; name: string; groupId: RoomGroupId; sortOrder:
   { id: "computer", name: "컴퓨터실", groupId: "special", sortOrder: 1 },
   { id: "ai", name: "AI실", groupId: "special", sortOrder: 2 },
   { id: "culture", name: "복합문화공간", groupId: "shared", sortOrder: 3 },
-  { id: "parent", name: "학부모회의실", groupId: "shared", sortOrder: 4 },
-  { id: "multipurpose", name: "다목적실", groupId: "shared", sortOrder: 5 },
+  { id: "multipurpose", name: "다목적실", groupId: "shared", sortOrder: 4 },
 ];
 
 export function roomName(id: string): string {
