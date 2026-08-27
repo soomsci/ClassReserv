@@ -16,6 +16,7 @@ import { WEEKDAY_LABELS } from "@/lib/config";
 import type { OwnerReservation, PublicReservation } from "@/lib/types";
 
 const LAST_NAME_KEY = "classreserv:lastName";
+const LAST_SUBJECT_KEY = "classreserv:lastSubject";
 const MINE_KEY = "classreserv:mine";
 
 export function rememberMine(id: string) {
@@ -76,8 +77,13 @@ export default function ReservationModal({ roomId, date, periodNo, existing, onC
   useEffect(() => {
     if (existing) return;
     try {
-      const last = window.localStorage.getItem(LAST_NAME_KEY) ?? "";
-      if (last) setForm((f) => ({ ...f, teacherName: last }));
+      const lastName = window.localStorage.getItem(LAST_NAME_KEY) ?? "";
+      const lastSubject = window.localStorage.getItem(LAST_SUBJECT_KEY) ?? "";
+      setForm((f) => ({
+        ...f,
+        teacherName: lastName || f.teacherName,
+        subject: lastSubject || f.subject,
+      }));
     } catch {
       /* 무시 */
     }
@@ -107,6 +113,7 @@ export default function ReservationModal({ roomId, date, periodNo, existing, onC
       }
       try {
         window.localStorage.setItem(LAST_NAME_KEY, form.teacherName.trim());
+        window.localStorage.setItem(LAST_SUBJECT_KEY, form.subject.trim());
       } catch {
         /* 무시 */
       }
@@ -190,7 +197,11 @@ export default function ReservationModal({ roomId, date, periodNo, existing, onC
   }
 
   const formFilled =
-    form.subject && form.teacherName.trim().length >= 2 && form.grade && form.classNo && form.device;
+    form.subject.trim() &&
+    form.teacherName.trim().length >= 2 &&
+    form.grade &&
+    form.classNo &&
+    form.device;
   const canSubmit = Boolean(formFilled) && /^\d{4}$/.test(pin) && !busy;
 
   return (
@@ -278,18 +289,19 @@ export default function ReservationModal({ roomId, date, periodNo, existing, onC
         {(mode === "create" || mode === "edit") && (
           <div className="space-y-3">
             <Field label="과목">
-              <select
+              <input
                 value={form.subject}
                 onChange={(e) => set("subject", e.target.value)}
+                maxLength={20}
+                list="subject-suggestions"
+                placeholder="예: 국어"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
-              >
-                <option value="">선택하세요</option>
+              />
+              <datalist id="subject-suggestions">
                 {SUBJECTS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
+                  <option key={s} value={s} />
                 ))}
-              </select>
+              </datalist>
             </Field>
 
             <Field label="교사명">

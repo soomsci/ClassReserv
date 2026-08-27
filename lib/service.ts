@@ -11,7 +11,6 @@ import {
   PIN_LOCK_MINUTES,
   PIN_MAX_ATTEMPTS,
   ROOMS,
-  SUBJECTS,
   devicesForRoom,
   periodExists,
   periodTime,
@@ -130,7 +129,8 @@ function validateInput(input: ReservationInput): string | null {
   if (weekday > 5) return "주말은 예약할 수 없습니다.";
   if (!periodExists(weekday, input.periodNo)) return "해당 요일에는 없는 교시입니다.";
 
-  if (!SUBJECTS.includes(input.subject)) return "과목을 선택해 주세요.";
+  const subject = (input.subject ?? "").trim();
+  if (subject.length < 1 || subject.length > 20) return "과목은 1~20자로 입력해 주세요.";
 
   const name = (input.teacherName ?? "").trim();
   if (name.length < 2 || name.length > 10) return "교사명은 2~10자로 입력해 주세요.";
@@ -198,7 +198,7 @@ export async function createReservation(
     roomId: input.roomId,
     date: input.date,
     periodNo: input.periodNo,
-    subject: input.subject,
+    subject: input.subject.trim(),
     teacherName: input.teacherName.trim(),
     grade: input.grade,
     classNo: input.classNo,
@@ -260,7 +260,7 @@ export async function updateReservation(
   if (isPastSlot(verified.date, end)) return { error: "이미 지난 예약은 수정할 수 없습니다." };
 
   await getRepo().updateReservation(id, {
-    subject: merged.subject,
+    subject: merged.subject.trim(),
     teacherName: merged.teacherName.trim(),
     grade: merged.grade,
     classNo: merged.classNo,
